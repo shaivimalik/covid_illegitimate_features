@@ -87,8 +87,8 @@ model_leak.add(layers.Conv2D(filters=64, kernel_size=(3, 3), padding="valid", ac
 model_leak.add(layers.MaxPooling2D(pool_size=(2, 2),padding="valid"))
 model_leak.add(layers.Conv2D(filters=128, kernel_size=(3, 3), padding="valid", activation='relu', use_bias=True))
 model_leak.add(layers.MaxPooling2D(pool_size=(2, 2),padding="valid"))
-model.add(layers.Conv2D(filters=128, kernel_size=(3, 3), padding="valid", activation='relu', use_bias=True))
-model.add(layers.MaxPooling2D(pool_size=(2, 2),padding="valid"))
+model_leak.add(layers.Conv2D(filters=128, kernel_size=(3, 3), padding="valid", activation='relu', use_bias=True))
+model_leak.add(layers.MaxPooling2D(pool_size=(2, 2),padding="valid"))
 
 # Flatten the output and add dense layers
 model_leak.add(layers.Flatten())
