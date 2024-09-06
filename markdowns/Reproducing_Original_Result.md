@@ -10,7 +10,7 @@
 
 ## Introduction
 
-In this notebook, we will reproduce the results published in **Identification of COVID-19 samples from chest X-Ray images using deep learning: A comparison of transfer learning approaches**. This study aims to recognize the chest X-ray images of COVID-19 cases from normal and pneumonia cases. 
+In this notebook, we will reproduce the results published in **Identification of COVID-19 samples from chest X-Ray images using deep learning: A comparison of transfer learning approaches**. This study aims to recognize the chest X-ray images of COVID-19 cases from normal and pneumonia cases. COVID-19, a highly contagious disease caused by the SARS-CoV-2 coronavirus, is confirmed through RT-PCR testing. When RT-PCR testing is unavailable or cost-prohibitive, chest X-ray image diagnosis emerges as an alternative. Chest X-ray image diagnosis of COVID-19 can play a crucial role in early screening and potentially preventing COVID-19-related deaths. Several studies have employed Convolutional Neural Networks (CNNs) to distinguish COVID-19 chest X-ray images from those of other conditions, offering a promising approach for rapid and accessible diagnosis. 
 
 :::
 
@@ -26,11 +26,13 @@ In this notebook, we will reproduce the results published in **Identification of
 ::: {.cell .markdown}
 ## Retrieve the datasets
 
-The study uses chest X-ray images from two datasets:
+The study utilized chest X-ray images from two datasets:
 
-- **COVID-19 Image Data Collection** [2] is a public open dataset of chest X-ray and CT images of patients which are positive or suspected of COVID-19 or other viral and bacterial pneumonias (MERS, SARS, and ARDS.). The images in this dataset were extracted from public databases, such as Radiopaedia.org, the Italian Society of Medical and Interventional Radiology, and Figure1.com, through manual collection and web scraping. The goal of this dataset is to provide COVID-19 chest X-rays and CT scans for computational analysis.
+- **COVID-19 Image Data Collection** [2] is a public open dataset of chest X-ray and CT images of patients which are positive or suspected of COVID-19 or other viral and bacterial pneumonias (MERS, SARS, and ARDS.). The images in this dataset were extracted from public databases, such as Radiopaedia.org, the Italian Society of Medical and Interventional Radiology, and Figure1.com, through manual collection and web scraping. The database is regularly updating with new cases.
 
 - **Chest X-Ray Images (Pneumonia)** [3] dataset consists of chest X-Ray images of 2 categories (Pneumonia/Normal). The images were selected from pediatric patients of one to five years old from Guangzhou Women and Children’s Medical Center, Guangzhou.
+
+The code cell below will download the datasets. Then, we will create TensorFlow Dataset objects and visualize chest X-ray images.
 
 :::
 
@@ -55,11 +57,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import tensorflow as tf
-from tensorflow import data as tf_data
 import keras
 from keras import layers
 from keras_cv import layers as layers_cv
-from keras.models import Model
 # Set random seeds for reproducibility
 np.random.seed(20)
 tf.random.set_seed(20)
@@ -133,7 +133,7 @@ print("Number of Pneumonia samples:", len(pneumonia_paths))
 
 ::: {.cell .markdown}
 
-Now, we use the `from_tensor_slices` method to create TensorFlow Dataset objects from the lists of paths.
+Now, we use the `from_tensor_slices` method to create `tf.data.Dataset` objects from the lists of paths.
 
 :::
 
@@ -173,7 +173,7 @@ pneumonia_ds = pneumonia_ds.map(lambda x: process_path(x,labels['pneumonia']))
 
 ::: {.cell .markdown}
 
-Finally, we visualize the chest X-ray images corresponding to each class.
+Finally, we visualize the chest X-ray images of each class.
 
 :::
 
@@ -201,9 +201,31 @@ keras.utils.load_img(pneumonia_paths[5], color_mode='grayscale', target_size=(22
 ::: {.cell .markdown}
 ## Reproducing results from "Identification of COVID-19 samples from chest X-Ray images using deep learning: A comparison of transfer learning approaches"
 
+In this study, 15 pre-trained CNN models, originally trained on the ImageNet dataset, were fine-tuned using transfer learning on chest X-ray images from COVID-19 patients, regular pneumonia patients, and healthy patients. The chest X-ray images were obtained from two sources: COVID-19 Image Data Collection [2] hosted on GitHub and a chest X-ray images [3] hosted on Kaggle.
+
+The Kaggle dataset consists of 5,863 X-Ray images, from which 300 normal and 300 pneumonia chest X-ray images were randomly chosen to create the dataset. At the time of the study, the GitHub repository contained 340 CXR and CT images, of which 260 frontal CXR images were considered. The number of images has increased since then, but to maintain consistency with the paper, we will randomly select 260 CXR images. The datasets were split according to the distribution shown in Figure 1.
+
+|![](../assets/dataset_split.png)|
+|:--------------------------------:|
+| *dataset split from original paper* |
+
+The images were resized to 224x224 pixels and the Keras `preprocess_input` method was used to transform the input images to meet the requirements of the models. Data augmentation was performed using the Keras ImageDataGenerator API. However, as ImageDataGenerator is now deprecated, we will use preprocessing layers from Keras in our replication of the original results. The data augmentation strategy is summarised in the table below:
+
+|                                  |            |
+|:--------------------------------:|:----------:|
+| **Rotation range**               | 20 degrees |
+| **Width and height shift**       | 10%        |
+| **Sheer scale**                  | 10%        |
+| **Zoom range**                   | 20%        |
+| **Horizontal and vertical flip** | True       |
+
+The pre-trained models were imported without their classifier/top layer, and their convolutional bases were frozen (`trainable = False`).The output of the convolutional base was flattened to obtain a one-dimensional vector, which was then passed through two fully connected layers with ReLU activation (1024 and 512 neurons) and a final fully connected layer with softmax activation. The model was trained using an input size of (224x224x3), an initial learning rate of 0.001, a batch size of 32, 50 epochs, and the RMSprop optimizer. To optimize performance, ReduceLROnPlateau from Keras was used to reduce the learning rate by a factor of 0.3 when the results stopped improving.
+
 |![](../assets/workflow.png)|
 |:--------------------------------:|
 | *workflow from the original paper* |
+
+To evaluate the models' performance, precision, recall, F1 score, and accuracy were calculated for each model. 
 
 |![](../assets/results.png)|
 |:--------------------------------:|
@@ -213,9 +235,7 @@ keras.utils.load_img(pneumonia_paths[5], color_mode='grayscale', target_size=(22
 |:--------------------------------:|
 | *confusion matrix of VGG19 generated on test dataset from the original paper* |
 
-|![](../assets/dataset_split.png)|
-|:--------------------------------:|
-| *dataset split from original paper* |
+In this notebook, we will reproduce the model with the highest reported accuracy: **VGG19 network with a flatten layer and three fully connected layers**. We will train and evaluate the model using the datatsets and metrics reported in the paper.
 
 :::
 
@@ -237,7 +257,7 @@ In this section, we will train and evaluate our Convolutional Neural Network fol
 
 ::: {.cell .markdown}
 
-We start by splitting `covid_ds`, `normal_ds` and `pneumonia_ds` according to the statistics given in the paper. We then concatenate these splits to create the training, test, and validation sets for model training and evaluation.
+We start by splitting `covid_ds`, `normal_ds` and `pneumonia_ds` according to the statistics given in the paper. We then concatenate these splits to form training, test, and validation sets for model training and evaluation. `keras.applications.vgg19.preprocess_input` method is applied to preprocess the images, ensuring they are in the correct format required by the VGG19 model.
 
 :::
 
@@ -271,12 +291,16 @@ covid_ds_test = covid_remaining.skip(40)
 train_ds = (covid_ds_train.concatenate(normal_ds_train).concatenate(pneumonia_ds_train))
 validation_ds = (covid_ds_val.concatenate(normal_ds_val).concatenate(pneumonia_ds_val))
 test_ds = (covid_ds_test.concatenate(normal_ds_test).concatenate(pneumonia_ds_test))
+# Preprocess the images in each dataset using VGG19 preprocess_input
+train_ds = train_ds.map(lambda x, y: (keras.applications.vgg19.preprocess_input(x), y))
+validation_ds = validation_ds.map(lambda x, y: (keras.applications.vgg19.preprocess_input(x), y))
+test_ds = test_ds.map(lambda x, y: (keras.applications.vgg19.preprocess_input(x), y))
 ```
 :::
 
 ::: {.cell .markdown}
 
-In this code cell, we create `RandomRotation` , `RandomTranslation`, `RandomShear`, `RandomZoom` and `RandomFlip` data augmentation layers and apply them on the training set.
+In this cell, we create `RandomRotation` , `RandomTranslation`, `RandomShear`, `RandomZoom` and `RandomFlip` data augmentation layers and apply them on the training set.
 
 :::
 
@@ -311,15 +335,15 @@ This code cell batches the datasets (`train_ds`, `validation_ds`, and `test_ds`)
 ```python
 batch_size = 32
 # Configure datasets for performance
-train_ds = train_ds.batch(batch_size).prefetch(tf_data.AUTOTUNE).cache()
-validation_ds = validation_ds.batch(batch_size).prefetch(tf_data.AUTOTUNE).cache()
-test_ds = test_ds.batch(batch_size).prefetch(tf_data.AUTOTUNE).cache()
+train_ds = train_ds.batch(batch_size).prefetch(tf.data.AUTOTUNE).cache()
+validation_ds = validation_ds.batch(batch_size).prefetch(tf.data.AUTOTUNE).cache()
+test_ds = test_ds.batch(batch_size).prefetch(tf.data.AUTOTUNE).cache()
 ```
 :::
 
 ::: {.cell .markdown}
 
-We initialize the VGG19 model with weights pretrained on the ImageNet dataset. By setting `include_top=False`, we exclude the final classification layer of the VGG19 model. We set the `trainable` attribute of the VGG19 layers to `False`. Then, we add a `Flatten` layer to convert the VGG19 output into a one-dimensional vector. We follow this with two `Dense` layers with ReLU activation, having 1024 and 512 neurons respectively. Finally, the output is fed into a `Dense` layer with a softmax activation function.
+Next, we initialize the VGG19 model with weights pretrained on the ImageNet dataset. By setting `include_top=False`, we exclude the final classification layer of the VGG19 model. We set the `trainable` attribute of the VGG19 layers to `False`. Then, we add a `Flatten` layer to convert the VGG19 output into a one-dimensional vector. We follow this with two `Dense` layers with ReLU activation, having 1024 and 512 neurons respectively. Finally, the output is fed into a `Dense` layer with a softmax activation function.
 
 :::
 
@@ -348,7 +372,7 @@ x = layers.Dense(512, activation='relu')(x)
 predictions = layers.Dense(3, activation='softmax')(x)
 
 # Create the full model
-model = Model(inputs=base_model.input, outputs=predictions)
+model = keras.Model(inputs=base_model.input, outputs=predictions)
 
 # Display model summary, showing which layers are trainable
 model.summary(show_trainable=True)
@@ -479,7 +503,60 @@ Let's save the model for future inference tasks.
 ::: {.cell .code}
 ```python
 # Save the model
-model.save('leakage_covid.keras')
+model.save('covid.keras')
+```
+:::
+
+::: {.cell .code}
+```python
+from matplotlib import cm
+from tf_keras_vis.gradcam import Gradcam
+
+# Image titles for each class
+image_titles = ['Covid', 'Normal', 'Pneumonia']
+
+index = np.random.randint(-40, 0)
+
+# Load images and Convert them to a Numpy array
+covid = keras.utils.load_img(covid_paths[index], target_size=(224, 224))
+normal = keras.utils.load_img(normal_paths[index], target_size=(224, 224))
+pneumonia = keras.utils.load_img(pneumonia_paths[index], target_size=(224, 224))
+images = np.asarray([np.array(covid), np.array(normal), np.array(pneumonia)])
+
+X = np.array([tf.keras.utils.img_to_array(img) for img in images])
+
+# Rendering
+f, ax = plt.subplots(nrows=1, ncols=3, figsize=(12, 4))
+for i, title in enumerate(image_titles):
+    ax[i].set_title(title, fontsize=16)
+    ax[i].imshow(images[i])
+    ax[i].axis('off')
+plt.tight_layout()
+plt.show()
+
+# Function to modify the model for GradCAM
+def model_modifier_function(cloned_model): 
+  cloned_model.layers[-1].activation = tf.keras.activations.linear
+
+# Score function for GradCAM
+def score_function(output): return (output[0][0], output[1][1], output[2][2])
+
+# Create Gradcam object
+gradcam = Gradcam(model, model_modifier=model_modifier_function, clone=True)
+
+# Generate heatmap with GradCAM
+cam = gradcam(score_function, X)
+
+# Rendering images with GradCAM heatmaps
+f, ax = plt.subplots(nrows=1, ncols=3, figsize=(12, 4))
+for i, title in enumerate(image_titles):
+    heatmap = np.uint8(cm.jet(cam[i])[..., :3] * 255)
+    ax[i].set_title(title, fontsize=16)
+    ax[i].imshow(images[i])
+    ax[i].imshow(heatmap, cmap='jet', alpha=0.5)
+    ax[i].axis('off')
+plt.tight_layout()
+plt.show()
 ```
 :::
 
@@ -488,7 +565,9 @@ model.save('leakage_covid.keras')
 
 | Metric        | Reproduced Results | Original Results|
 |:-------------:|:------------------:|:---------------:|
-| Accuracy      | 87.14              | 89.3            |
+| Accuracy      | 92.14              | 89.3            |
+
+We have successfully reproduced the results published in **Identification of COVID-19 samples from chest X-Ray images using deep learning: A comparison of transfer learning approaches** [1]. However, the **Chest X-Ray Images (Pneumonia)** dataset contains images of pediatric patients, which represents a different demographic from the **COVID-19 Image Data Collection** dataset. As a result, the model has learned features that may not be present in real-world data, leading to data leakage of the type: **Model uses features that are not legitimate**. Note that the test distribution is not representative of real-world data about which the scientific claims are made, which introduces another type of data leakage: Sampling bias in test distribution. We continue our discussion on data leakage in the next notebook.
 
 :::
 
@@ -500,5 +579,9 @@ model.save('leakage_covid.keras')
 [2]: COVID-19 Image Data Collection: Prospective Predictions Are the Future Joseph Paul Cohen and Paul Morrison and Lan Dao and Karsten Roth and Tim Q Duong and Marzyeh Ghassemi arXiv:2006.11988, 2020
 
 [3]: Kermany, Daniel; Zhang, Kang; Goldbaum, Michael (2018), “Labeled Optical Coherence Tomography (OCT) and Chest X-Ray Images for Classification”, Mendeley Data, V2, doi: 10.17632/rscbjbr9sj.2
+
+[4]: Saez de Gordoa E, Portella A, Escudero-Fernández JM, Andreu Soriano J. Utilidad de la radiografía de tórax para la detección de neumonía COVID 19 durante la pandemia por SARS-CoV-2. Radiología. 2022;64:310–316
+
+[5]: Ebrahimzadeh S, IslamN, DawitH, SalamehJ-P, KaziS, FabianoN, TreanorL, AbsiM, AhmadF, RoopraiP, Al KhalilA, HarperK, KamraN, LeeflangMMG, HooftL, van der PolCB, PragerR, HareSS, DennieC, SpijkerR, DeeksJJ, DinnesJ, JenniskensK, KorevaarDA, CohenJF, Van den BruelA, TakwoingiY, van de WijgertJ, WangJ, PenaE, SabonguiS, McInnesMDF, Cochrane COVID-19 Diagnostic Test Accuracy Group.Thoracic imaging tests for the diagnosis of COVID-19. Cochrane Database of Systematic Reviews 2022, Issue 5. Art. No.: CD013639. DOI: 10.1002/14651858.CD013639.pub5.
 
 :::
