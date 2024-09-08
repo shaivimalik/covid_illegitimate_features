@@ -9,6 +9,8 @@
 ::: {.cell .markdown}
 ## Introduction
 
+In this notebook, we will reproduce the results published in **Identification of COVID-19 samples from chest X-Ray images using deep learning: A comparison of transfer learning approaches** [1] without data leakage. This study aims to recognize the chest X-ray images of COVID-19 cases from normal and pneumonia cases. 
+
 :::
 
 ::: {.cell .code}
@@ -22,6 +24,14 @@
 
 ::: {.cell .markdown}
 ## Retrieve the datasets
+
+We will use two datasets:
+
+- **COVID-19 Image Data Collection** [2] is a public open dataset of chest X-ray and CT images of patients which are positive or suspected of COVID-19 or other viral and bacterial pneumonias (MERS, SARS, and ARDS.). The images in this dataset were extracted from public databases, such as Radiopaedia.org, the Italian Society of Medical and Interventional Radiology, and Figure1.com, through manual collection and web scraping. The database is regularly updating with new cases.
+
+- **ChestX-ray8** [3] dataset comprises of 108,948 frontal-view X-ray images of 32,717 (collected from the year of 1992 to 2015) unique patients with the text-mined eight common disease labels.
+
+The code cell below will download the datasets. Then, we will create TensorFlow Dataset objects and visualize chest X-ray images.
 
 :::
 
@@ -80,6 +90,12 @@
 ```
 :::
 
+::: {.cell .markdown}
+
+We start by importing the required libraries.
+
+:::
+
 ::: {.cell .code}
 ```python
 import os
@@ -87,15 +103,21 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import tensorflow as tf
-from tensorflow import data as tf_data
 import keras
 from keras import layers
 from keras_cv import layers as layers_cv
-from keras.models import Model
 # Set random seeds for reproducibility
 np.random.seed(20)
 tf.random.set_seed(20)
 ```
+:::
+
+::: {.cell .markdown}
+
+The **COVID-19 Image Data Collection** and **ChestX-ray8** contain chest X-ray images of various lung diseases, so we need to filter and identify the COVID-19 images. 
+
+Here, we extract the file paths of X-ray images from COVID-19 cases and remove duplicates.
+
 :::
 
 ::: {.cell .code}
@@ -110,6 +132,12 @@ covid_files = df['filename'].to_list()
 covid_paths = np.random.choice(covid_files, size=260)
 covid_paths = ['covid-chestxray-dataset/images/' + i for i in covid_paths]
 ```
+:::
+
+::: {.cell .markdown} 
+
+We extract the file paths of X-ray images for both Pneumonia and normal cases and remove any duplicates.
+
 :::
 
 ::: {.cell .code}
@@ -132,12 +160,24 @@ print("Number of Pneumonia samples:", len(pneumonia_paths))
 ```
 :::
 
+::: {.cell .markdown}
+
+Now, we use the `from_tensor_slices` method to create `tf.data.Dataset` objects from the lists of paths.
+
+:::
+
 ::: {.cell .code}
 ```python
 covid_ds = tf.data.Dataset.from_tensor_slices(covid_paths)
 normal_ds = tf.data.Dataset.from_tensor_slices(normal_paths)
 pneumonia_ds = tf.data.Dataset.from_tensor_slices(pneumonia_paths)
 ```
+:::
+
+::: {.cell .markdown}
+
+Next, we assign labels to each image and use the process_path function to load and resize them to 224x224 pixels.
+
 :::
 
 ::: {.cell .code}
@@ -156,6 +196,12 @@ covid_ds = covid_ds.map(lambda x: process_path(x,labels['covid-19']))
 normal_ds = normal_ds.map(lambda x: process_path(x,labels['normal']))
 pneumonia_ds = pneumonia_ds.map(lambda x: process_path(x,labels['pneumonia']))
 ```
+:::
+
+::: {.cell .markdown}
+
+Finally, we visualize the chest X-ray images of each class.
+
 :::
 
 ::: {.cell .code}
@@ -178,6 +224,23 @@ keras.utils.load_img(pneumonia_paths[5], color_mode='grayscale', target_size=(22
 
 ::: {.cell .markdown}
 ## Train and evaluate the convolutional neural network(VGG19) via Transfer Learning
+
+In this section, we will train and evaluate our Convolutional Neural Network following the methodology outlined in the paper:
+
+- Split the datasets into training, test, and validation sets.
+- Apply the data augmentation strategy.
+- Load the VGG19 model to extract features from the images.
+- Add two dense layers with ReLU activation.
+- Add a final dense layer with softmax activation.
+- Train the model for 50 epochs with a learning rate of 0.001 using the RMSprop optimizer.
+- Use ReduceLROnPlateau to adjust the learning rate when validation loss has stopped improving.
+- Report the model's accuracy, confusion matrix, and class-wise precision, recall, and F1-score.
+
+:::
+
+::: {.cell .markdown}
+
+We start by splitting `covid_ds`, `normal_ds` and `pneumonia_ds` according to the statistics given in the paper. We then concatenate these splits to form training, test, and validation sets for model training and evaluation. `keras.applications.vgg19.preprocess_input` method is applied to preprocess the images, ensuring they are in the correct format required by the VGG19 model.
 
 :::
 
@@ -203,24 +266,32 @@ covid_ds_test = covid_remaining.skip(40)
 
 ::: {.cell .code}
 ```python
+# Combine datasets
 train_ds = (covid_ds_train.concatenate(normal_ds_train).concatenate(pneumonia_ds_train))
 validation_ds = (covid_ds_val.concatenate(normal_ds_val).concatenate(pneumonia_ds_val))
 test_ds = (covid_ds_test.concatenate(normal_ds_test).concatenate(pneumonia_ds_test))
-
+# Preprocess the images in each dataset using VGG19 preprocess_input
 train_ds = train_ds.map(lambda x, y: (keras.applications.vgg19.preprocess_input(x), y))
 validation_ds = validation_ds.map(lambda x, y: (keras.applications.vgg19.preprocess_input(x), y))
 test_ds = test_ds.map(lambda x, y: (keras.applications.vgg19.preprocess_input(x), y))
 ```
 :::
 
+::: {.cell .markdown}
+
+In this cell, we create `RandomRotation` , `RandomTranslation`, `RandomShear`, `RandomZoom` and `RandomFlip` data augmentation layers and apply them on the training set.
+
+:::
+
 ::: {.cell .code}
 ```python
+# Define data augmentation layers
 augmentation_layers = [
-    layers.RandomRotation(0.2),
-    layers.RandomTranslation(0.1, 0.1),
-    layers_cv.RandomShear(x_factor=0.1, y_factor=0.1),
-    layers.RandomZoom(0.2),
-    layers.RandomFlip("horizontal_and_vertical")
+    layers.RandomRotation(0.2), # Randomly rotate images by up to 20 degrees
+    layers.RandomTranslation(0.1, 0.1), # Randomly translate images by up to 10% in x and y directions
+    layers_cv.RandomShear(x_factor=0.1, y_factor=0.1), # Randomly shear images by up to 10% in x and y directions
+    layers.RandomZoom(0.2), # Randomly zoom images by up to 20%
+    layers.RandomFlip("horizontal_and_vertical") # Randomly flip images horizontally and vertically
 ]
 
 def data_augmentation(x):
@@ -228,48 +299,91 @@ def data_augmentation(x):
         x = layer(x)
     return x
 
+# Apply data augmentation to training set
 train_ds = train_ds.map(lambda x, y: (data_augmentation(x), y))
 ```
+:::
+
+::: {.cell .markdown}
+
+This code cell batches the datasets (`train_ds`, `validation_ds`, and `test_ds`) into batches of 32 samples, uses prefetching to improve performance, and caches the datasets in memory for faster subsequent access.
+
 :::
 
 ::: {.cell .code}
 ```python
 batch_size = 32
-
-train_ds = train_ds.batch(batch_size).prefetch(tf_data.AUTOTUNE).cache()
-validation_ds = validation_ds.batch(batch_size).prefetch(tf_data.AUTOTUNE).cache()
-test_ds = test_ds.batch(batch_size).prefetch(tf_data.AUTOTUNE).cache()
+# Configure datasets for performance
+train_ds = train_ds.batch(batch_size).prefetch(tf.data.AUTOTUNE).cache()
+validation_ds = validation_ds.batch(batch_size).prefetch(tf.data.AUTOTUNE).cache()
+test_ds = test_ds.batch(batch_size).prefetch(tf.data.AUTOTUNE).cache()
 ```
+:::
+
+::: {.cell .markdown}
+
+Next, we initialize the VGG19 model with weights pretrained on the ImageNet dataset. By setting `include_top=False`, we exclude the final classification layer of the VGG19 model. We set the `trainable` attribute of the VGG19 layers to `False`. Then, we add a `Flatten` layer to convert the VGG19 output into a one-dimensional vector. We follow this with two `Dense` layers with ReLU activation, having 1024 and 512 neurons respectively. Finally, the output is fed into a `Dense` layer with a softmax activation function.
+
 :::
 
 ::: {.cell .code}
 ```python
-base_model = keras.applications.VGG19(include_top=False, input_shape =[224, 224, 3], weights="imagenet")
+# Create a base model using VGG19 pre-trained on ImageNet
+base_model = keras.applications.VGG19(
+    weights="imagenet",  # Load weights pre-trained on ImageNet
+    input_shape=[224, 224, 3],  # Specify input shape
+    include_top=False,  # Do not include the ImageNet classifier at the top
+)
 
+# Freeze the base model to prevent its weights from being updated during training
 base_model.trainable = False
 
+# Flatten the output of VGG19
 x = layers.Flatten()(base_model.output)
+
+# Add Dense layer with 1024 neurons and ReLU activation
 x = layers.Dense(1024, activation='relu')(x)
+
+# Add Dense layer with 512 neurons and ReLU activation
 x = layers.Dense(512, activation='relu')(x)
 
+# Add final Dense layer with softmax activation for 3-class prediction
 predictions = layers.Dense(3, activation='softmax')(x)
 
-model = Model(inputs=base_model.input, outputs=predictions)
+# Create the full model
+model = keras.Model(inputs=base_model.input, outputs=predictions)
 
+# Display model summary, showing which layers are trainable
 model.summary(show_trainable=True)
 ```
 :::
 
+::: {.cell .markdown}
+
+We train the model on the training set using the RMSprop optimizer for 50 epochs. We use `sparse_categorical_crossentropy` as our loss function since the labels are encoded as integers. We apply `ReduceLROnPlateau` to reduce the learning rate by a factor of 0.3 when the validation loss plateaus.
+
+:::
+
 ::: {.cell .code}
 ```python
+# Compile the model
 model.compile(optimizer='rmsprop', loss='sparse_categorical_crossentropy', metrics=[keras.metrics.SparseCategoricalAccuracy()])
 
+# Define learning rate reduction callback
 reduce_lr = keras.callbacks.ReduceLROnPlateau(factor=0.3)
 
+# Set number of training epochs
 epochs = 50
 
+# Train the model
 history = model.fit(train_ds, epochs=epochs, validation_data=validation_ds, callbacks=[reduce_lr])
 ```
+:::
+
+::: {.cell .markdown}
+
+We plot the training accuracy (`sparse_categorical_accuracy`) and validation accuracy (`val_sparse_categorical_accuracy`) against the number of epochs.
+
 :::
 
 ::: {.cell .code}
@@ -293,6 +407,12 @@ plt.show()
 ```
 :::
 
+::: {.cell .markdown}
+
+Here, we evaluate the model on the test set and report the accuracy.
+
+:::
+
 ::: {.cell .code}
 ```python
 # Evaluate model on test set
@@ -300,6 +420,12 @@ loss, accuracy = model.evaluate(test_ds)
 print('Test loss :', loss)
 print('Test accuracy :', accuracy)
 ```
+:::
+
+::: {.cell .markdown}
+
+The following code cells display the true and predicted labels on the test set and generate a confusion matrix.
+
 :::
 
 ::: {.cell .code}
@@ -326,6 +452,12 @@ ConfusionMatrixDisplay(conf_mat,display_labels=labels.keys()).plot(cmap='Blues')
 ```
 :::
 
+::: {.cell .markdown}
+
+Finally, we report the class-wise precision, recall and f1-score of the model's performance on the test set.
+
+:::
+
 ::: {.cell .code}
 ```python
 # Generate classification report
@@ -341,6 +473,12 @@ for key in labels.keys():
 ```
 :::
 
+::: {.cell .markdown}
+
+Let's save the model for future inference tasks.
+
+:::
+
 ::: {.cell .code}
 ```python
 model.save('correct_covid.keras')
@@ -353,5 +491,17 @@ model.save('correct_covid.keras')
 | Metric        | Original | Reproduced | Reproduced without Data Leakage |
 |:-------------:|:--------:|:----------:|:-------------------------------:|
 | Accuracy      | 89.3     | 92.14      | 51.43                           |
+
+:::
+
+::: {.cell .markdown}
+## References
+
+[1]: Rahaman, Md Mamunur et al. “Identification of COVID-19 samples from chest X-Ray images using deep learning: A comparison of transfer learning approaches.” Journal of X-ray science and technology vol. 28,5 (2020): 821-839. doi:10.3233/XST-200715
+
+[2]: COVID-19 Image Data Collection: Prospective Predictions Are the Future Joseph Paul Cohen and Paul Morrison and Lan Dao and Karsten Roth and Tim Q Duong and Marzyeh Ghassemi arXiv:2006.11988, 2020
+
+[3]: X. Wang, et al., "ChestX-Ray8: Hospital-Scale Chest X-Ray Database and Benchmarks on Weakly-Supervised Classification and Localization of Common Thorax Diseases," in 2017 IEEE Conference on Computer Vision and Pattern Recognition (CVPR), Honolulu, HI, USA, 2017 pp. 3462-3471. doi: 10.1109/CVPR.2017.369
+
 
 :::

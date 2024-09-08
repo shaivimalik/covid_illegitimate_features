@@ -44,7 +44,7 @@ dataset_leak = keras.utils.image_dataset_from_directory(
 train_ds_leak = dataset_leak.take(tf_data.experimental.cardinality(dataset_leak).numpy()*0.7)
 remaining_ds_leak = dataset_leak.skip(tf_data.experimental.cardinality(dataset_leak).numpy()*0.7)
 val_ds_leak = remaining_ds_leak.take(tf_data.experimental.cardinality(dataset_leak).numpy()*0.1)
-test_ds_leak = remaining_ds_leak.skip(tf_data.experimental.cardinality(dataset_leak).numpy()*0.2)
+test_ds_leak = remaining_ds_leak.skip(tf_data.experimental.cardinality(dataset_leak).numpy()*0.1)
 ```
 :::
 
@@ -228,7 +228,7 @@ dataset = keras.utils.image_dataset_from_directory(
 train_ds = dataset.take(tf_data.experimental.cardinality(dataset).numpy()*0.7)
 remaining_ds = dataset.skip(tf_data.experimental.cardinality(dataset).numpy()*0.7)
 val_ds = remaining_ds.take(tf_data.experimental.cardinality(dataset).numpy()*0.1)
-test_ds = remaining_ds.skip(tf_data.experimental.cardinality(dataset).numpy()*0.2)
+test_ds = remaining_ds.skip(tf_data.experimental.cardinality(dataset).numpy()*0.1)
 ```
 :::
 
