@@ -10,7 +10,7 @@
 
 ## Introduction
 
-In this notebook, we will reproduce the results published in **Identification of COVID-19 samples from chest X-Ray images using deep learning: A comparison of transfer learning approaches**. This study aims to recognize the chest X-ray images of COVID-19 cases from normal and pneumonia cases. COVID-19, a highly contagious disease caused by the SARS-CoV-2 coronavirus, is confirmed through RT-PCR testing. When RT-PCR testing is unavailable or cost-prohibitive, chest X-ray image diagnosis emerges as an alternative. Chest X-ray image diagnosis of COVID-19 can play a crucial role in early screening and potentially preventing COVID-19-related deaths. Several studies have employed Convolutional Neural Networks (CNNs) to distinguish COVID-19 chest X-ray images from those of other conditions, offering a promising approach for rapid and accessible diagnosis. 
+In this notebook, we will reproduce the results published in **Identification of COVID-19 samples from chest X-Ray images using deep learning: A comparison of transfer learning approaches** [1]. This study aims to recognize the chest X-ray images of COVID-19 cases from normal and pneumonia cases. COVID-19, a highly contagious disease caused by the SARS-CoV-2 coronavirus, is confirmed through RT-PCR testing. When RT-PCR testing is unavailable or cost-prohibitive, chest X-ray image diagnosis emerges as an alternative. Chest X-ray image diagnosis of COVID-19 can play a crucial role in early screening and potentially preventing COVID-19-related deaths. Several studies have employed Convolutional Neural Networks (CNNs) to distinguish COVID-19 chest X-ray images from those of other conditions, offering a promising approach for rapid and accessible diagnosis. 
 
 :::
 
@@ -203,7 +203,7 @@ keras.utils.load_img(pneumonia_paths[5], color_mode='grayscale', target_size=(22
 
 In this study, 15 pre-trained CNN models, originally trained on the ImageNet dataset, were fine-tuned using transfer learning on chest X-ray images from COVID-19 patients, regular pneumonia patients, and healthy patients. The chest X-ray images were obtained from two sources: COVID-19 Image Data Collection [2] hosted on GitHub and a chest X-ray images [3] hosted on Kaggle.
 
-The Kaggle dataset consists of 5,863 X-Ray images, from which 300 normal and 300 pneumonia chest X-ray images were randomly chosen to create the dataset. At the time of the study, the GitHub repository contained 340 CXR and CT images, of which 260 frontal CXR images were considered. The number of images has increased since then, but to maintain consistency with the paper, we will randomly select 260 CXR images. The datasets were split according to the distribution shown in Figure 1.
+The Kaggle dataset consists of 5,863 X-Ray images, from which 300 normal and 300 pneumonia chest X-ray images were randomly chosen to create the dataset. At the time of the study, the GitHub repository contained 340 CXR and CT images, of which 260 frontal CXR images were considered. The number of images has increased since then, but to maintain consistency with the paper, we will randomly select 260 CXR images. The datasets were split according to the distribution shown below.
 
 |![](../assets/dataset_split.png)|
 |:--------------------------------:|

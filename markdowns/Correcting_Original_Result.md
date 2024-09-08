@@ -206,6 +206,10 @@ covid_ds_test = covid_remaining.skip(40)
 train_ds = (covid_ds_train.concatenate(normal_ds_train).concatenate(pneumonia_ds_train))
 validation_ds = (covid_ds_val.concatenate(normal_ds_val).concatenate(pneumonia_ds_val))
 test_ds = (covid_ds_test.concatenate(normal_ds_test).concatenate(pneumonia_ds_test))
+
+train_ds = train_ds.map(lambda x, y: (keras.applications.vgg19.preprocess_input(x), y))
+validation_ds = validation_ds.map(lambda x, y: (keras.applications.vgg19.preprocess_input(x), y))
+test_ds = test_ds.map(lambda x, y: (keras.applications.vgg19.preprocess_input(x), y))
 ```
 :::
 
@@ -339,7 +343,7 @@ for key in labels.keys():
 
 ::: {.cell .code}
 ```python
-model.save('without_leakage_covid.keras')
+model.save('correct_covid.keras')
 ```
 :::
 
@@ -348,6 +352,6 @@ model.save('without_leakage_covid.keras')
 
 | Metric        | Original | Reproduced | Reproduced without Data Leakage |
 |:-------------:|:--------:|:----------:|:-------------------------------:|
-| Accuracy      | 89.3     | 87.14      | 54.29                           |
+| Accuracy      | 89.3     | 92.14      | 51.43                           |
 
 :::
