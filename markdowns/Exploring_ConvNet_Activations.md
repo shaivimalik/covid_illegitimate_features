@@ -23,6 +23,8 @@ import matplotlib.pyplot as plt
 import keras
 from keras import layers
 from tensorflow import data as tf_data
+from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
+keras.utils.set_random_seed(27)
 ```
 :::
 
@@ -32,40 +34,30 @@ from tensorflow import data as tf_data
 image_size = (256,256)
 batch_size = 4
 
-# Load the dataset from directory
-dataset_leak = keras.utils.image_dataset_from_directory(
-    '../different_backgrounds', 
+# Load training and validation sets from directory
+train_ds_leak, val_ds_leak= keras.utils.image_dataset_from_directory(
+    '../different_backgrounds/train', 
     label_mode="categorical", 
     image_size=image_size, 
-    batch_size=batch_size
+    batch_size=batch_size,
+    seed=27,
+    validation_split=0.125,
+    subset='both'
 )
-
-# Split the dataset into train, validation, and test sets (70-10-20)
-train_ds_leak = dataset_leak.take(tf_data.experimental.cardinality(dataset_leak).numpy()*0.7)
-remaining_ds_leak = dataset_leak.skip(tf_data.experimental.cardinality(dataset_leak).numpy()*0.7)
-val_ds_leak = remaining_ds_leak.take(tf_data.experimental.cardinality(dataset_leak).numpy()*0.1)
-test_ds_leak = remaining_ds_leak.skip(tf_data.experimental.cardinality(dataset_leak).numpy()*0.1)
 ```
 :::
 
 ::: {.cell .code}
 ```python
-# Define data augmentation layers
-data_augmentation_layers = [
-    layers.RandomFlip("horizontal"),
-    layers.RandomRotation(0.1),
-]
-# Function to apply data augmentation
-def data_augmentation(images):
-    for layer in data_augmentation_layers:
-        images = layer(images)
-    return images
-
-# Apply data augmentation to training dataset
-train_ds_leak = train_ds_leak.map(lambda img, label: (data_augmentation(img), label),num_parallel_calls=tf_data.AUTOTUNE)
-# Prefetch test and validation datasets for performance
-test_ds_leak = test_ds_leak.prefetch(tf_data.AUTOTUNE)
-val_ds_leak = val_ds_leak.prefetch(tf_data.AUTOTUNE)
+# Load test set from directory
+test_ds_leak= keras.utils.image_dataset_from_directory(
+    '../different_backgrounds/test', 
+    label_mode="categorical", 
+    image_size=image_size, 
+    batch_size=batch_size,
+    seed=27,
+    shuffle=False
+)
 ```
 :::
 
@@ -135,9 +127,19 @@ plt.show()
 ::: {.cell .code}
 ```python
 # Evaluate the model on test data
-score = model_leak.evaluate(test_ds_leak)
-print("Test loss:", score[0])
-print("Test accuracy:", score[1])
+score_leak = model_leak.evaluate(test_ds_leak)
+print("Test loss:", score_leak[0])
+print("Test accuracy:", score_leak[1])
+```
+:::
+
+::: {.cell .code}
+```python
+y_pred_leak = model_leak.predict(test_ds_leak)
+y_pred_leak = np.argmax(y_pred_leak, axis=1)
+y_true_leak = np.concatenate([np.argmax(label, axis=1) for _, label in test_ds_leak], axis=0)
+conf_mat_leak = confusion_matrix(y_true_leak,y_pred_leak)
+ConfusionMatrixDisplay(conf_mat_leak,display_labels=['husky','wolf']).plot(cmap='Blues')
 ```
 :::
 
@@ -150,8 +152,8 @@ from tf_keras_vis.gradcam import Gradcam
 image_titles = ['husky', 'wolf']
 
 # Create lists of file paths for husky and wolf images
-husky_files = np.array(['../different_backgrounds/husky/'+x for x in os.listdir('../different_backgrounds/husky')])
-wolf_files = np.array(['../different_backgrounds/wolf/'+x for x in os.listdir('../different_backgrounds/wolf')])
+husky_files = np.array(['../different_backgrounds/test/husky/'+x for x in os.listdir('../different_backgrounds/test/husky')])
+wolf_files = np.array(['../different_backgrounds/test/wolf/'+x for x in os.listdir('../different_backgrounds/test/wolf')])
 
 # Load random images for each class and convert them to a Numpy array
 husky = keras.utils.load_img(np.random.choice(husky_files), target_size=image_size)
@@ -202,11 +204,23 @@ background_swap = keras.utils.image_dataset_from_directory(
     '../background_swap', 
     label_mode="categorical", 
     image_size=image_size, 
-    batch_size=batch_size
+    batch_size=batch_size,
+    shuffle=False,
+    seed=27
 )
-score = model_leak.evaluate(background_swap)
-print("Test loss:", score[0])
-print("Test accuracy:", score[1])
+score_swap = model_leak.evaluate(background_swap)
+print("Test loss:", score_swap[0])
+print("Test accuracy:", score_swap[1])
+```
+:::
+
+::: {.cell .code}
+```python
+y_pred_swap = model_leak.predict(background_swap)
+y_pred_swap = np.argmax(y_pred_swap, axis=1)
+y_true_swap = np.concatenate([np.argmax(label, axis=1) for _, label in background_swap], axis=0)
+conf_mat_swap = confusion_matrix(y_true_swap,y_pred_swap)
+ConfusionMatrixDisplay(conf_mat_swap,display_labels=['husky','wolf']).plot(cmap='Blues')
 ```
 :::
 
@@ -216,40 +230,30 @@ print("Test accuracy:", score[1])
 image_size = (256,256)
 batch_size = 4
 
-# Load the dataset from directory
-dataset = keras.utils.image_dataset_from_directory(
-    '../same_backgrounds', 
+# Load training and validation sets from directory
+train_ds, val_ds = keras.utils.image_dataset_from_directory(
+    '../same_backgrounds/train', 
     label_mode="categorical", 
     image_size=image_size, 
-    batch_size=batch_size
+    batch_size=batch_size,
+    seed=27,
+    validation_split=0.125,
+    subset='both'
 )
-
-# Split the dataset into train, validation, and test sets (70-10-20)
-train_ds = dataset.take(tf_data.experimental.cardinality(dataset).numpy()*0.7)
-remaining_ds = dataset.skip(tf_data.experimental.cardinality(dataset).numpy()*0.7)
-val_ds = remaining_ds.take(tf_data.experimental.cardinality(dataset).numpy()*0.1)
-test_ds = remaining_ds.skip(tf_data.experimental.cardinality(dataset).numpy()*0.1)
 ```
 :::
 
 ::: {.cell .code}
 ```python
-# Define data augmentation layers
-data_augmentation_layers = [
-    layers.RandomFlip("horizontal"),
-    layers.RandomRotation(0.1),
-]
-
-def data_augmentation(images):
-    for layer in data_augmentation_layers:
-        images = layer(images)
-    return images
-
-# Apply data augmentation to training dataset
-train_ds = train_ds.map(lambda img, label: (data_augmentation(img), label),num_parallel_calls=tf_data.AUTOTUNE)
-# Prefetch test and validation datasets for performance
-test_ds = test_ds.prefetch(tf_data.AUTOTUNE)
-val_ds = val_ds.prefetch(tf_data.AUTOTUNE)
+# Load test set from directory
+test_ds= keras.utils.image_dataset_from_directory(
+    '../same_backgrounds/test', 
+    label_mode="categorical", 
+    image_size=image_size, 
+    batch_size=batch_size,
+    seed=17,
+    shuffle=False
+)
 ```
 :::
 
@@ -325,6 +329,16 @@ print("Test accuracy:", score[1])
 
 ::: {.cell .code}
 ```python
+y_pred = model.predict(test_ds)
+y_pred = np.argmax(y_pred, axis=1)
+y_true = np.concatenate([np.argmax(label, axis=1) for _, label in test_ds], axis=0)
+conf_mat = confusion_matrix(y_true,y_pred)
+ConfusionMatrixDisplay(conf_mat,display_labels=['husky','wolf']).plot(cmap='Blues')
+```
+:::
+
+::: {.cell .code}
+```python
 from matplotlib import cm
 from tf_keras_vis.gradcam import Gradcam
 
@@ -332,8 +346,8 @@ from tf_keras_vis.gradcam import Gradcam
 image_titles = ['husky', 'wolf']
 
 # Create lists of file paths for husky and wolf images
-husky_files = np.array(['../same_backgrounds/husky/'+x for x in os.listdir('../same_backgrounds/husky')])
-wolf_files = np.array(['../same_backgrounds/wolf/'+x for x in os.listdir('../same_backgrounds/wolf')])
+husky_files = np.array(['../same_backgrounds/test/husky/'+x for x in os.listdir('../same_backgrounds/test/husky')])
+wolf_files = np.array(['../same_backgrounds/test/wolf/'+x for x in os.listdir('../same_backgrounds/test/wolf')])
 
 # Load random images for each class and convert them to a Numpy array
 husky = keras.utils.load_img(np.random.choice(husky_files), target_size=image_size)
