@@ -29,7 +29,7 @@ We will use two datasets:
 
 - **COVID-19 Image Data Collection** [2] is a public open dataset of chest X-ray and CT images of patients which are positive or suspected of COVID-19 or other viral and bacterial pneumonias (MERS, SARS, and ARDS.). The images in this dataset were extracted from public databases, such as Radiopaedia.org, the Italian Society of Medical and Interventional Radiology, and Figure1.com, through manual collection and web scraping. The database is regularly updating with new cases.
 
-- **ChestX-ray8** [3] dataset comprises of 108,948 frontal-view X-ray images of 32,717 (collected from the year of 1992 to 2015) unique patients with the text-mined eight common disease labels.
+- **ChestX-ray8** [3] dataset comprises of 108,948 frontal-view X-ray images (collected from the year of 1992 to 2015) of 32,717 unique patients with the text-mined eight common disease labels.
 
 The code cell below will download the datasets. Then, we will create TensorFlow Dataset objects and visualize chest X-ray images.
 
@@ -176,7 +176,7 @@ pneumonia_ds = tf.data.Dataset.from_tensor_slices(pneumonia_paths)
 
 ::: {.cell .markdown}
 
-Next, we assign labels to each image and use the process_path function to load and resize them to 224x224 pixels.
+Next, we assign labels to each image and use the `process_path` function to load and resize them to 224x224 pixels.
 
 :::
 
@@ -486,11 +486,72 @@ model.save('correct_covid.keras')
 :::
 
 ::: {.cell .markdown}
+
+Next, we use GradCAM [4] to identify the pixels responsible for an image being classified as normal, pneumonia, or COVID-19.
+
+:::
+
+::: {.cell .code}
+```python
+from matplotlib import cm
+from tf_keras_vis.gradcam import Gradcam
+
+# Image titles for each class
+image_titles = ['Covid', 'Normal', 'Pneumonia']
+
+index = np.random.randint(-40, 0)
+
+# Load images and Convert them to a Numpy array
+covid = keras.utils.load_img(covid_paths[index], target_size=(224, 224))
+normal = keras.utils.load_img(normal_paths[index], target_size=(224, 224))
+pneumonia = keras.utils.load_img(pneumonia_paths[index], target_size=(224, 224))
+images = np.asarray([np.array(covid), np.array(normal), np.array(pneumonia)])
+
+X = np.array([tf.keras.utils.img_to_array(img) for img in images])
+
+# Rendering
+f, ax = plt.subplots(nrows=1, ncols=3, figsize=(12, 4))
+for i, title in enumerate(image_titles):
+    ax[i].set_title(title, fontsize=16)
+    ax[i].imshow(images[i])
+    ax[i].axis('off')
+plt.tight_layout()
+plt.show()
+
+# Function to modify the model for GradCAM
+def model_modifier_function(cloned_model): 
+  cloned_model.layers[-1].activation = tf.keras.activations.linear
+
+# Score function for GradCAM
+def score_function(output): return (output[0][0], output[1][1], output[2][2])
+
+# Create Gradcam object
+gradcam = Gradcam(model, model_modifier=model_modifier_function, clone=True)
+
+# Generate heatmap with GradCAM
+cam = gradcam(score_function, X)
+
+# Rendering images with GradCAM heatmaps
+f, ax = plt.subplots(nrows=1, ncols=3, figsize=(12, 4))
+for i, title in enumerate(image_titles):
+    heatmap = np.uint8(cm.jet(cam[i])[..., :3] * 255)
+    ax[i].set_title(title, fontsize=16)
+    ax[i].imshow(images[i])
+    ax[i].imshow(heatmap, cmap='jet', alpha=0.5)
+    ax[i].axis('off')
+plt.tight_layout()
+plt.show()
+```
+:::
+
+::: {.cell .markdown}
 ## Discussion 
 
 | Metric        | Original | Reproduced | Reproduced without Data Leakage |
 |:-------------:|:--------:|:----------:|:-------------------------------:|
 | Accuracy      | 89.3     | 92.14      | 51.43                           |
+
+In this notebook, we successfully reproduced the findings of **"Identification of COVID-19 Samples from Chest X-Ray Images Using Deep Learning: A Comparison of Transfer Learning Approaches"** without data leakage. The model's accuracy dropped by 40%, confirming that it had previously relied on illegitimate features to distinguish between COVID-19, pneumonia, and normal patients when using the Chest X-Ray Images (Pneumonia) dataset from Kaggle. When working with medical data, it is crucial to consult a professional and ensure that no information is inadvertently leaked to the model—information that would not be available during real-world deployment.
 
 :::
 
@@ -503,5 +564,6 @@ model.save('correct_covid.keras')
 
 [3]: X. Wang, et al., "ChestX-Ray8: Hospital-Scale Chest X-Ray Database and Benchmarks on Weakly-Supervised Classification and Localization of Common Thorax Diseases," in 2017 IEEE Conference on Computer Vision and Pattern Recognition (CVPR), Honolulu, HI, USA, 2017 pp. 3462-3471. doi: 10.1109/CVPR.2017.369
 
+[4]: R. R. Selvaraju, M. Cogswell, A. Das, R. Vedantam, D. Parikh and D. Batra, "Grad-CAM: Visual Explanations from Deep Networks via Gradient-Based Localization," 2017 IEEE International Conference on Computer Vision (ICCV), Venice, Italy, 2017, pp. 618-626, doi: 10.1109/ICCV.2017.74. 
 
 :::

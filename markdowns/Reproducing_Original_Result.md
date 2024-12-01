@@ -148,7 +148,7 @@ pneumonia_ds = tf.data.Dataset.from_tensor_slices(pneumonia_paths)
 
 ::: {.cell .markdown}
 
-Next, we associate labels with each image and resize the images to 224x224 pixels using the `process_path` function.
+Next, we assign labels to each image and use the `process_path` function to load and resize them to 224x224 pixels.
 
 :::
 
@@ -507,6 +507,12 @@ model.save('covid.keras')
 ```
 :::
 
+::: {.cell .markdown}
+
+Next, we use GradCAM [4] to identify the pixels responsible for an image being classified as normal, pneumonia, or COVID-19.
+
+:::
+
 ::: {.cell .code}
 ```python
 from matplotlib import cm
@@ -569,6 +575,10 @@ plt.show()
 
 We have successfully reproduced the results published in **Identification of COVID-19 samples from chest X-Ray images using deep learning: A comparison of transfer learning approaches** [1]. However, the **Chest X-Ray Images (Pneumonia)** dataset contains images of pediatric patients, which represents a different demographic from the **COVID-19 Image Data Collection** dataset. As a result, the model has learned features that may not be present in real-world data, leading to data leakage of the type: **Model uses features that are not legitimate**. Note that the test distribution is not representative of real-world data about which the scientific claims are made, which introduces another type of data leakage: Sampling bias in test distribution. We continue our discussion on data leakage in the next notebook.
 
+### Reliability of AI-Based COVID-19 Detection from Chest X-Rays
+
+Maguolo et al. [5] demonstrated that by removing lung regions from X-ray images—blacking out the center of the scans—and training classifiers solely on the outer parts of the images, the ROC-AUC of AlexNet remained above 0.5. This suggests that neural networks were learning patterns in the dataset unrelated to the presence of COVID-19. Similarly, DeGrave et al. [6] showed that recent deep learning models for detecting COVID-19 from chest radiographs often rely on confounding factors rather than genuine medical pathology. This dependence on spurious “shortcuts” creates a concerning situation where models appear accurate but fail when applied in new hospital settings. Additionally, Cleverley et al. [7] stressed that no single feature on chest radiography can reliably diagnose COVID-19 pneumonia.
+
 :::
 
 ::: {.cell .markdown}
@@ -580,8 +590,12 @@ We have successfully reproduced the results published in **Identification of COV
 
 [3]: Kermany, Daniel; Zhang, Kang; Goldbaum, Michael (2018), “Labeled Optical Coherence Tomography (OCT) and Chest X-Ray Images for Classification”, Mendeley Data, V2, doi: 10.17632/rscbjbr9sj.2
 
-[4]: Saez de Gordoa E, Portella A, Escudero-Fernández JM, Andreu Soriano J. Utilidad de la radiografía de tórax para la detección de neumonía COVID 19 durante la pandemia por SARS-CoV-2. Radiología. 2022;64:310–316
+[4]: R. R. Selvaraju, M. Cogswell, A. Das, R. Vedantam, D. Parikh and D. Batra, "Grad-CAM: Visual Explanations from Deep Networks via Gradient-Based Localization," 2017 IEEE International Conference on Computer Vision (ICCV), Venice, Italy, 2017, pp. 618-626, doi: 10.1109/ICCV.2017.74. 
 
-[5]: Ebrahimzadeh S, IslamN, DawitH, SalamehJ-P, KaziS, FabianoN, TreanorL, AbsiM, AhmadF, RoopraiP, Al KhalilA, HarperK, KamraN, LeeflangMMG, HooftL, van der PolCB, PragerR, HareSS, DennieC, SpijkerR, DeeksJJ, DinnesJ, JenniskensK, KorevaarDA, CohenJF, Van den BruelA, TakwoingiY, van de WijgertJ, WangJ, PenaE, SabonguiS, McInnesMDF, Cochrane COVID-19 Diagnostic Test Accuracy Group.Thoracic imaging tests for the diagnosis of COVID-19. Cochrane Database of Systematic Reviews 2022, Issue 5. Art. No.: CD013639. DOI: 10.1002/14651858.CD013639.pub5.
+[5]: Maguolo, Gianluca and Loris Nanni. “A critic evaluation of methods for COVID-19 automatic detection from X-ray images.” An International Journal on Information Fusion 76 (2020): 1 - 7.
+
+[6]: DeGrave, A.J., Janizek, J.D. & Lee, SI. AI for radiographic COVID-19 detection selects shortcuts over signal. Nat Mach Intell 3, 610–619 (2021). https://doi.org/10.1038/s42256-021-00338-7
+
+[7]: Cleverley J, Piper J, Jones M M. The role of chest radiography in confirming covid-19 pneumonia BMJ 2020; 370 :m2426 doi:10.1136/bmj.m2426
 
 :::
