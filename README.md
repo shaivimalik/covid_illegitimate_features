@@ -27,8 +27,8 @@ Click on the "Open in Colab" buttons above to run the notebooks in Google Colab.
 
 1. Clone the repository:
    ```
-   $ git clone https://github.com/shaivimalik/medicine_preprocessing-on-entire-dataset.git
-   $ cd medicine_preprocessing-on-entire-dataset
+   $ git clone https://github.com/shaivimalik/covid_illegitimate_features.git
+   $ cd covid_illegitimate_features
    ```
 
 2. Install the required dependencies:
